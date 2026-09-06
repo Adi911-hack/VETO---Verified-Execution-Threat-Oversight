@@ -1,5 +1,6 @@
 const express = require("express")
 const cors = require("cors")
+const { redTeamAudit } = require("./redteam/riskEngine")
 
 const app = express()
 
@@ -11,13 +12,34 @@ app.get("/", (req, res) => {
 })
 
 app.post("/api/goal", (req, res) => {
-  const { goal } = req.body
+
+  const { goal, action } = req.body
+
+  if (!goal) {
+    return res.status(400).json({
+      success: false,
+      message: "Goal is required"
+    })
+  }
+
+  if (!action) {
+    return res.status(400).json({
+      success: false,
+      message: "Action is required"
+    })
+  }
+
+  const audit = redTeamAudit(action)
 
   res.json({
     success: true,
     goal: goal,
-    message: "Goal received by VETO"
+    action: action,
+    risk: audit.risk,
+    verdict: audit.verdict,
+    status: audit.status
   })
+
 })
 
 app.listen(3000, () => {
