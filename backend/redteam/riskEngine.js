@@ -57,22 +57,27 @@ function evaluateRisk(action) {
 
 
 function redTeamAudit(action) {
+
   const risk = evaluateRisk(action)
 
   let verdict
+  let status
 
   if (risk.level === "LOW") {
     verdict = "APPROVE"
+    status = "approved"
+  } else if (risk.level === "MEDIUM") {
+    verdict = "REVIEW"
+    status = "review"
   } else {
     verdict = "BLOCK"
+    status = "blocked"
   }
 
   return {
     risk,
     verdict,
-    status: verdict === "BLOCK"
-      ? "blocked"
-      : "approved"
+    status
   }
 }
 
