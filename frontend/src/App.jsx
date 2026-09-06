@@ -1,39 +1,76 @@
 import { useState } from "react"
+import ActionInput from "./components/ActionInput"
+import DecisionPanel from "./components/DecisionPanel"
+import RedTeamPanel from "./components/RedTeamPanel"
+import "./App.css"
 
 function App() {
   const [goal, setGoal] = useState("")
   const [message, setMessage] = useState("")
+  const [status, setStatus] = useState("Idle")
+  const [loading, setLoading] = useState(false)
 
   async function sendGoal() {
-    const response = await fetch("http://localhost:3000/api/goal", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ goal })
-    })
+    if (!goal.trim()) return
 
-    const data = await response.json()
-    setMessage(data.message)
+    setLoading(true)
+    setMessage("")
+    setStatus("Analyzing")
+
+    try {
+      const response = await fetch("http://localhost:3000/api/goal", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ goal })
+      })
+
+      const data = await response.json()
+
+      setMessage(data.message || "No response received")
+      setStatus(data.status || "Completed")
+    } catch {
+      setMessage("Unable to connect to backend")
+      setStatus("Error")
+    }
+
+    setLoading(false)
   }
 
   return (
-    <div>
-      <h1>VETO</h1>
-      <p>Autonomous Agent Safety Layer</p>
+    <div className="app">
+      <header className="header">
+        <div>
+          <h1>VETO</h1>
+          <p>Verified Execution and Threat Oversight</p>
+        </div>
 
-      <input
-        type="text"
-        placeholder="Enter a goal"
-        value={goal}
-        onChange={(e) => setGoal(e.target.value)}
-      />
+        <span className="system-badge">Safety Layer Active</span>
+      </header>
 
-      <button onClick={sendGoal}>
-        Execute
-      </button>
+      <main className="dashboard">
+        <section className="left-panel">
+          <ActionInput
+            goal={goal}
+            setGoal={setGoal}
+            sendGoal={sendGoal}
+            loading={loading}
+          />
 
-      <p>{message}</p>
+          <RedTeamPanel
+            status={status}
+            goal={goal}
+          />
+        </section>
+
+        <section className="right-panel">
+          <DecisionPanel
+            status={status}
+            message={message}
+          />
+        </section>
+      </main>
     </div>
   )
 }
