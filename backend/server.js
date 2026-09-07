@@ -97,7 +97,7 @@ app.post("/api/runs",requireAuth, async (req, res) => {
 })
 
 // Save an Executor structured action
-app.post("/api/actions", async (req, res) => {
+app.post("/api/actions", requireAuth, async (req, res) => {
   try {
     const {
       run_id,
@@ -115,6 +115,20 @@ app.post("/api/actions", async (req, res) => {
         message: "run_id is required"
       })
     }
+
+    const { data: ownedRun, error: ownedRunError } = await supabase
+  .from("runs")
+  .select("id")
+  .eq("id", run_id)
+  .eq("user_id", req.user.id)
+  .single()
+
+if (ownedRunError || !ownedRun) {
+  return res.status(403).json({
+    success: false,
+    message: "You do not have access to this run"
+  })
+}
 
     const { data: action, error: actionError } = await supabase
       .from("actions")
@@ -166,7 +180,7 @@ app.post("/api/actions", async (req, res) => {
 })
 
 // Add a custom timeline log
-app.post("/api/logs", async (req, res) => {
+app.post("/api/logs", requireAuth, async (req, res) => {
   try {
     const { run_id, message, event_type } = req.body
 
@@ -176,6 +190,20 @@ app.post("/api/logs", async (req, res) => {
         message: "run_id and message are required"
       })
     }
+
+    const { data: ownedRun, error: ownedRunError } = await supabase
+  .from("runs")
+  .select("id")
+  .eq("id", run_id)
+  .eq("user_id", req.user.id)
+  .single()
+
+if (ownedRunError || !ownedRun) {
+  return res.status(403).json({
+    success: false,
+    message: "You do not have access to this run"
+  })
+}
 
     const { data: log, error: logError } = await supabase
       .from("logs")
@@ -269,10 +297,37 @@ app.get("/api/runs/:id", requireAuth, async (req, res) => {
 })
 
 // Save Risk Engine / Red-Team verdict
-app.patch("/api/actions/:id/verdict", async (req, res) => {
+app.patch("/api/actions/:id/verdict", requireAuth, async (req, res) => {
   try {
     const { id } = req.params
     const { risk_level, verdict, reason } = req.body
+
+    const { data: existingAction, error: existingActionError } = await supabase
+  .from("actions")
+  .select("id, run_id")
+  .eq("id", id)
+  .single()
+
+if (existingActionError || !existingAction) {
+  return res.status(404).json({
+    success: false,
+    message: "Action not found"
+  })
+}
+
+const { data: ownedRun, error: ownedRunError } = await supabase
+  .from("runs")
+  .select("id")
+  .eq("id", existingAction.run_id)
+  .eq("user_id", req.user.id)
+  .single()
+
+if (ownedRunError || !ownedRun) {
+  return res.status(403).json({
+    success: false,
+    message: "You do not have access to this action"
+  })
+}
 
     const normalizedVerdict = verdict?.toUpperCase()
 
@@ -344,25 +399,28 @@ app.patch("/api/actions/:id/verdict", async (req, res) => {
 })
 
 // Mark an approved run as executed
-app.patch("/api/runs/:id/execute", async (req, res) => {
+app.patch("/api/runs/:id/execute", requireAuth, async (req, res) => {
   try {
     const { id } = req.params
 
-    const { data: run, error: runError } = await supabase
-      .from("runs")
-      .select("*")
-      .eq("id", id)
-      .single()
+    const { data: ownedRun, error: ownedRunError } = await supabase
+  .from("runs")
+  .select("*")
+  .eq("id", id)
+  .eq("user_id", req.user.id)
+  .single()
 
-    if (runError) {
-      return res.status(404).json({
-        success: false,
-        message: "Run not found",
-        error: runError.message
-      })
-    }
+if (ownedRunError || !ownedRun) {
+  return res.status(403).json({
+    success: false,
+    message: "You do not have access to this run"
+  })
+}
 
-    if (run.status !== "approved") {
+
+    
+
+    if (ownedRun.status !== "approved") {
       return res.status(400).json({
         success: false,
         message: "Run must be approved before execution"
