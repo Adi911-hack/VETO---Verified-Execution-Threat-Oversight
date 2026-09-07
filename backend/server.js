@@ -3,6 +3,7 @@ require("dotenv").config()
 const express = require("express")
 const cors = require("cors")
 const supabase = require("./supabase")
+const requireAuth = require("./auth")   
 
 const app = express()
 const PORT = 3000
@@ -39,9 +40,9 @@ app.get("/api/health", async (req, res) => {
 })
 
 // Create a new VETO run
-app.post("/api/runs", async (req, res) => {
+app.post("/api/runs",requireAuth, async (req, res) => {
   try {
-    const { goal, user_id } = req.body
+    const { goal } = req.body
 
     if (!goal || !goal.trim()) {
       return res.status(400).json({
@@ -55,7 +56,7 @@ app.post("/api/runs", async (req, res) => {
       .insert([
         {
           goal: goal.trim(),
-          user_id: user_id || null,
+          user_id: req.user.id,
           status: "received"
         }
       ])
@@ -208,7 +209,7 @@ app.post("/api/logs", async (req, res) => {
 })
 
 // Get full run data for the dashboard
-app.get("/api/runs/:id", async (req, res) => {
+app.get("/api/runs/:id", requireAuth, async (req, res) => {
   try {
     const { id } = req.params
 
@@ -216,6 +217,7 @@ app.get("/api/runs/:id", async (req, res) => {
       .from("runs")
       .select("*")
       .eq("id", id)
+      .eq("user_id", req.user.id)
       .single()
 
     if (runError) {
